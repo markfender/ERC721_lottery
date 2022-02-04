@@ -1,20 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 //import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 
+// todo: Add events
+// todo: Add comments
+// todo: integrate chainlink
 
-/* contract Lottery is Ownable, VRFConsumerBase { */
+
+/// @title Solidity lottery implementation
+/// @author Maksym Fedorenko
 contract Lottery is Ownable, ERC721 {
-
 	event LotteryIsFinished(address winner);
-	// todo: Add events
-	// todo: Add comments
-	// todo: integrate chainlink
+
+	uint256 public lotteryTicketPrice;
+	uint256 public lotteryPeriod;
+	uint256 public lotteryTicketsLimit;
+	uint256 public lotteryTimeStart;
+
 	using Counters for Counters.Counter;
 
 	enum LotteryStatus {
@@ -23,23 +30,10 @@ contract Lottery is Ownable, ERC721 {
 		Finished
 	}
 
-    Counters.Counter private _tokenIds;
+	Counters.Counter private _tokenIds;
 	LotteryStatus public lotteryStatus = LotteryStatus.Finished;
 
-	uint256 public lotteryTicketPrice;
-	uint256 public lotteryPeriod;
-	uint256 public lotteryTicketsLimit;
-	uint256 public lotteryTimeStart;
-
-	/*
-	address private LINK_TOKEN = 0xa36085F69e2889c224210F603D836748e7dC0088;
-	address private VRF_COORDINATOR = 0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9;
-	bytes32 internal keyHash = 0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4;
-	uint256 internal chainlinkFee;
-	 VRFConsumerBase(
-		VRF_COORDINATOR,
-		LINK_TOKEN
-	) */
+	/// Initialize contract and start the lottery
 	constructor(
 		uint256 _lotteryTicketPrice,
 		uint256 _lotteryPeriod,
@@ -54,6 +48,8 @@ contract Lottery is Ownable, ERC721 {
 		);
 	}
 
+	/// @notice Return the change (in ether), if the lottery ticket costs less than it was payed
+	/// @return Lottery ticket number
 	function pickLotteryTicket() public payable returns (uint256) {
 		require(msg.value >= lotteryTicketPrice, "Not enough ether to get the ticket");
 		require(
@@ -64,17 +60,19 @@ contract Lottery is Ownable, ERC721 {
 		);
 
 		_tokenIds.increment();
-        uint256 newItemId = _tokenIds.current();
-        _safeMint(msg.sender, newItemId);
+		uint256 newItemId = _tokenIds.current();
+		_safeMint(msg.sender, newItemId);
 
 		uint256 change = msg.value - lotteryTicketPrice;
 		if (change >= 1) {
 			(bool sent, ) = msg.sender.call{value: change}("Return the change");
 			require(sent, "Failed to send the change");
 		}
-        return newItemId;		
+		return newItemId;		
 	}
 
+	/// @notice Allows to finish the lottery whan the tickets or time is over
+	/// @dev Everyone can call it, so the required statements should be tested properly 
 	function finishLottery() public {
 		require(lotteryStatus == LotteryStatus.Active, "Wrong lottery status");
 		require(
@@ -93,12 +91,17 @@ contract Lottery is Ownable, ERC721 {
 		emit LotteryIsFinished(theWinner);
 	}
 
+	/// @dev It is not a secure method, so it should be definitely replaced with a Oracles randomness in the future
+	/// @param _randomValue Any random value which is used to get the winner
+	/// @return Winner address
 	function getWinner(uint256 _randomValue) private view returns (address) {
 		require(lotteryStatus == LotteryStatus.PendingResult, "Wrong lottery status");
 		if(_tokenIds.current() == 0) return owner();
 		else return ownerOf((_randomValue % _tokenIds.current() ) + 1);
 	}
 
+	/// @param _winner The winner address
+	/// @dev It send 90% of aggregated ether to the winner and 10% to the lottery owner
 	function sendReward(address _winner) private {
 		require(lotteryStatus == LotteryStatus.PendingResult);
 
@@ -107,6 +110,7 @@ contract Lottery is Ownable, ERC721 {
 		payable(owner()).transfer(address(this).balance); // send the rest to the owner
 	}
 
+	/// Restart the lottery
 	function restartLottery(uint256 _lotteryTicketPrice, uint256 _lotteryPeriod, uint256 _lotteryTicketsLimit) public onlyOwner {
 		require(lotteryStatus == LotteryStatus.Finished, "The lottery isn't finished");
 
@@ -117,6 +121,9 @@ contract Lottery is Ownable, ERC721 {
 		);
 	}
 
+	/// @param _lotteryTicketPrice The price per one lottery NFT ticket in wei
+	/// @param _lotteryPeriod The lottery period, specified in seconds
+	/// @param _lotteryTicketsLimit The limit of the tickets in the lottery
 	function startLottery(uint256 _lotteryTicketPrice, uint256 _lotteryPeriod, uint256 _lotteryTicketsLimit) private {
 		lotteryTicketPrice = _lotteryTicketPrice;
 		lotteryPeriod = _lotteryPeriod;
@@ -130,22 +137,6 @@ contract Lottery is Ownable, ERC721 {
 		lotteryStatus = LotteryStatus.Active;
 		lotteryTimeStart = block.timestamp;
 	}
-
-
-	/** 
-	 * Requests randomness 
-
-	function getRandomNumber() public returns (bytes32 requestId) {
-		require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK - fill contract with faucet");
-		return requestRandomness(keyHash, fee);
-	}
-
-	/**
-	 * Callback function used by VRF Coordinator
-
-	function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-		randomResult = randomness;
-	} */
 
 	//Destroy contract
 	function destroy() public onlyOwner {
