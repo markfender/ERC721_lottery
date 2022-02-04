@@ -138,8 +138,13 @@ contract Lottery is Ownable, ERC721 {
 		lotteryTimeStart = block.timestamp;
 	}
 
-	//Destroy contract
+	/// Destroy contract
 	function destroy() public onlyOwner {
+		require(
+			lotteryStatus == LotteryStatus.Finished,
+			"Impossible to destroy contract until the lottery is not finished"
+		);
+
 		selfdestruct(payable(owner()));
 	}
 }

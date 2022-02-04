@@ -1,24 +1,19 @@
 import { assert, web3, artifacts, network } from "hardhat";
+import { getBalances, increaseTime } from "./utils";
+
 const truffleAssert = require('truffle-assertions');
-const { increaseTime } = require('./utils/timeManipulation');
 
 const Lottery = artifacts.require("Lottery");
 
 const toBN = web3.utils.toBN;
 const bn1e18 = toBN(1e18);
 
-// todo: Move to utils
-const getBalances = async (accounts: string[]) => {
-    return await Promise.all(
-        accounts.map(async (account) => web3.eth.getBalance(account))
-    )
-}
-
-describe("Exchange", () => {
+describe("Lottery", () => {
 	let accounts: string[];
 	let owner: string;
 	let payer: string;
 	let lotteryInstance: any;
+
     const lotteryPeriodInSeconds = 120; // 3 minutes
     const timeAfterLotteryHasFinished = lotteryPeriodInSeconds * 2;
     const ticketCost = toBN(2).mul(toBN(1e18)); // 2 eth
@@ -70,9 +65,9 @@ describe("Exchange", () => {
             
             increaseTime(web3, timeAfterLotteryHasFinished);
 
-            const accountsBalancesBefore = await getBalances(accounts);
+            const accountsBalancesBefore = await getBalances(web3, accounts);
             const result = await lotteryInstance.methods["finishLottery()"]({from: owner});
-            const accountsBalancesAfter = await getBalances(accounts);
+            const accountsBalancesAfter = await getBalances(web3, accounts);
             
             //chech who is the winner according to the balance change
             let winnerAccount: string = "";
@@ -92,6 +87,32 @@ describe("Exchange", () => {
             await truffleAssert.reverts(
                 lotteryInstance.methods["finishLottery()"]({from: accounts[1]}),
                 "Lottery is not finished"
+            );
+        });
+    });
+
+    describe("destroy", () => {
+        it("Should be able to call destroy function successfully by Owner", async () => {
+            increaseTime(web3, timeAfterLotteryHasFinished); // increase time to finish lottery
+
+            await lotteryInstance.methods["finishLottery()"]({from: owner});
+            await lotteryInstance.destroy({from: owner});
+            const lotteryCodeAfterSelfdestruct = await web3.eth.getCode(lotteryInstance.address);
+
+            assert.equal(lotteryCodeAfterSelfdestruct, "0x");
+        });
+
+        it("Should fail destroy function call after Owner call durnig the lottery", async () => {
+            await truffleAssert.reverts(
+                lotteryInstance.destroy({from: owner}),
+                "Impossible to destroy contract until the lottery is not finished"
+            );
+        });
+
+        it("Should fail destroy function call after none Owner call", async () => {
+            await truffleAssert.reverts(
+                lotteryInstance.destroy({from: accounts[3]}),
+                "Ownable: caller is not the owner"
             );
         });
     });
