@@ -6,11 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-
 // todo: Add events
-// todo: Add comments
 // todo: integrate chainlink
-
 
 /// @title Solidity lottery implementation
 /// @author Maksym Fedorenko
@@ -18,9 +15,9 @@ contract Lottery is Ownable, ERC721 {
 	event LotteryIsFinished(address winner);
 
 	uint256 public lotteryTicketPrice;
-	uint256 public lotteryPeriod;
-	uint256 public lotteryTicketsLimit;
-	uint256 public lotteryTimeStart;
+	uint64 public lotteryTimeStart;
+	uint64 public lotteryPeriod;
+	uint64 public lotteryTicketsLimit;
 
 	using Counters for Counters.Counter;
 
@@ -36,8 +33,8 @@ contract Lottery is Ownable, ERC721 {
 	/// Initialize contract and start the lottery
 	constructor(
 		uint256 _lotteryTicketPrice,
-		uint256 _lotteryPeriod,
-		uint256 _lotteryTicketsLimit
+		uint64 _lotteryPeriod,
+		uint64 _lotteryTicketsLimit
 	) ERC721("LotteryTicket", "LT") {
 		//chainlinkFee = 0.1 * 10 ** 18; // 0.1 LINK fee
 
@@ -50,22 +47,22 @@ contract Lottery is Ownable, ERC721 {
 
 	/// @notice Return the change (in ether), if the lottery ticket costs less than it was payed
 	/// @return Lottery ticket number
-	function pickLotteryTicket() public payable returns (uint256) {
+	function pickLotteryTicket() public payable returns (uint64) {
 		require(msg.value >= lotteryTicketPrice, "Not enough ether to get the ticket");
 		require(
-			_tokenIds.current() < lotteryTicketsLimit &&
-			lotteryTimeStart + lotteryPeriod >= block.timestamp &&
+			uint64(_tokenIds.current()) < lotteryTicketsLimit &&
+			lotteryTimeStart + lotteryPeriod >= uint64(block.timestamp) &&
 			lotteryStatus == LotteryStatus.Active,
 			"Lottery is finished"
 		);
 
 		_tokenIds.increment();
-		uint256 newItemId = _tokenIds.current();
-		_safeMint(msg.sender, newItemId);
+		uint64 newItemId = uint64(_tokenIds.current());
+		_safeMint(_msgSender(), uint256(newItemId));
 
 		uint256 change = msg.value - lotteryTicketPrice;
 		if (change >= 1) {
-			(bool sent, ) = msg.sender.call{value: change}("Return the change");
+			(bool sent, ) = _msgSender().call{value: change}("Return the change");
 			require(sent, "Failed to send the change");
 		}
 		return newItemId;		
@@ -76,7 +73,7 @@ contract Lottery is Ownable, ERC721 {
 	function finishLottery() public {
 		require(lotteryStatus == LotteryStatus.Active, "Wrong lottery status");
 		require(
-			_tokenIds.current() >= lotteryTicketsLimit || lotteryTimeStart + lotteryPeriod < block.timestamp,
+			uint64(_tokenIds.current()) >= lotteryTicketsLimit || lotteryTimeStart + lotteryPeriod < uint64(block.timestamp),
 			"Lottery is not finished"
 		);
 
@@ -111,7 +108,11 @@ contract Lottery is Ownable, ERC721 {
 	}
 
 	/// Restart the lottery
-	function restartLottery(uint256 _lotteryTicketPrice, uint256 _lotteryPeriod, uint256 _lotteryTicketsLimit) public onlyOwner {
+	function restartLottery(
+		uint256 _lotteryTicketPrice,
+		uint64 _lotteryPeriod,
+		uint64 _lotteryTicketsLimit
+	) public onlyOwner {
 		require(lotteryStatus == LotteryStatus.Finished, "The lottery isn't finished");
 
 		startLottery(
@@ -124,7 +125,11 @@ contract Lottery is Ownable, ERC721 {
 	/// @param _lotteryTicketPrice The price per one lottery NFT ticket in wei
 	/// @param _lotteryPeriod The lottery period, specified in seconds
 	/// @param _lotteryTicketsLimit The limit of the tickets in the lottery
-	function startLottery(uint256 _lotteryTicketPrice, uint256 _lotteryPeriod, uint256 _lotteryTicketsLimit) private {
+	function startLottery(
+		uint256 _lotteryTicketPrice,
+		uint64 _lotteryPeriod,
+		uint64 _lotteryTicketsLimit
+	) private {
 		lotteryTicketPrice = _lotteryTicketPrice;
 		lotteryPeriod = _lotteryPeriod;
 		lotteryTicketsLimit = _lotteryTicketsLimit;
@@ -135,7 +140,7 @@ contract Lottery is Ownable, ERC721 {
 
 		_tokenIds.reset();
 		lotteryStatus = LotteryStatus.Active;
-		lotteryTimeStart = block.timestamp;
+		lotteryTimeStart = uint64(block.timestamp);
 	}
 
 	/// Destroy contract

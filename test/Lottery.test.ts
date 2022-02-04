@@ -1,23 +1,21 @@
-import { assert, web3, artifacts, network } from "hardhat";
+import { assert, web3, artifacts } from "hardhat";
 import { getBalances, increaseTime } from "./utils";
 
 const truffleAssert = require('truffle-assertions');
 
-const Lottery = artifacts.require("Lottery");
-
-const toBN = web3.utils.toBN;
-const bn1e18 = toBN(1e18);
-
 describe("Lottery", () => {
-	let accounts: string[];
-	let owner: string;
-	let payer: string;
-	let lotteryInstance: any;
+    const toBN = web3.utils.toBN;
+
+    const Lottery = artifacts.require("Lottery");
 
     const lotteryPeriodInSeconds = 120; // 3 minutes
     const timeAfterLotteryHasFinished = lotteryPeriodInSeconds * 2;
     const ticketCost = toBN(2).mul(toBN(1e18)); // 2 eth
     const lotteryTicketsLimit = 3; // 3 tickets
+    
+	let accounts: string[];
+	let owner: string;
+	let lotteryInstance: any;
 
 	beforeEach(async () => {
 		accounts = await web3.eth.getAccounts();
@@ -29,11 +27,10 @@ describe("Lottery", () => {
 			lotteryTicketsLimit, // _lotteryTicketsLimit num of tickets
 			{from: owner}
 		);
-
 	});
 
     describe("buyLotteryTicket (for Eth)", () => {
-        it( "Payer should get lotteryTicket successfuly", async () => {
+        it("Payer should get lotteryTicket successfuly", async () => {
             const lotteryTicketsBalanceBefore = await lotteryInstance.balanceOf(accounts[1]);
             
             await lotteryInstance.methods["pickLotteryTicket()"]({from: accounts[1], value: ticketCost});
@@ -43,9 +40,29 @@ describe("Lottery", () => {
                 lotteryTicketsBalanceBefore.add(toBN(1))
             ));
         });
+
+        it("Payer should get lotteryTicket and change successfuly", async () => {
+            const accountBalanceBefore = toBN(await web3.eth.getBalance(accounts[1]));
+
+            const ethToSend = ticketCost.mul(toBN(2)); // Send twice more than a ticket cost
+
+            const getLotteryTicketCall = await lotteryInstance.methods["pickLotteryTicket()"]({from: accounts[1], value: ethToSend});
+            const gasUsed = toBN(getLotteryTicketCall.receipt.gasUsed);
+            const currentGasPrice = toBN((await web3.eth.getTransaction(getLotteryTicketCall.tx)).gasPrice);
+            
+            const lotteryTicketsBalanceAfter = await lotteryInstance.balanceOf(accounts[1]);
+            const accountBalanceAfter = toBN(await web3.eth.getBalance(accounts[1]));
+
+            assert.equal(true, accountBalanceAfter.eq(
+                accountBalanceBefore.sub(
+                    gasUsed.mul(currentGasPrice)
+                ).sub(ticketCost)
+            ));
+            assert.equal(true, lotteryTicketsBalanceAfter.eq(toBN(1)));
+        });
     });
 
-    describe("finishLottery (by creator)", () => {
+    describe("finishLottery", () => {
         it("If no one joined the lottery the lottery creator should be the winner", async () => {
             increaseTime(web3, timeAfterLotteryHasFinished); // increase time to finish lottey
 
@@ -56,9 +73,7 @@ describe("Lottery", () => {
                 return eventData["winner"] == owner;
             });
         });
-    });
 
-    describe("finishLottery (by anyone)", () => {
         it("Lottery should choose random winner correctly", async () => {
             for(let i = 1; i <= lotteryTicketsLimit; i++)
                 await lotteryInstance.methods["pickLotteryTicket()"]({from: accounts[i], value: ticketCost});
@@ -83,7 +98,7 @@ describe("Lottery", () => {
             });
         });
 
-        it( "Lottery shouldn't be finished immediently", async () => {
+        it("Lottery should not be finished until the specified time come", async () => {
             await truffleAssert.reverts(
                 lotteryInstance.methods["finishLottery()"]({from: accounts[1]}),
                 "Lottery is not finished"
