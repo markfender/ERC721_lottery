@@ -8,7 +8,7 @@
     "verify-rinkeby": "truffle run verify Lottery --network rinkeby",
     "migrate-kovan": "truffle migrate --network kovan --reset -f 1 --to 1",
     "verify-kovan": "truffle run verify Lottery --network kovan",
-    "test": "npx hardhat test test/lottery.ts"
+    "test": "npx hardhat test test/lottery.test.ts"
   },
   "author": "Maksym Fedorenko",
   "license": "ISC",

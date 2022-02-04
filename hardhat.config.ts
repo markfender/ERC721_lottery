@@ -37,7 +37,7 @@ module.exports = {
     hardhat: {
       forking: {
         url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_KEY}`, //move key to alchemy
-        blockNumber: 9779277
+        blockNumber: 9779278
       }
     },
     /*mainnet: {

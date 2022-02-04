@@ -28,7 +28,7 @@ contract Lottery is Ownable, ERC721 {
 
 	uint256 public lotteryTicketPrice;
 	uint256 public lotteryPeriod;
-	uint256 private lotteryTicketsLimit;
+	uint256 public lotteryTicketsLimit;
 	uint256 public lotteryTimeStart;
 
 	/*
@@ -96,7 +96,7 @@ contract Lottery is Ownable, ERC721 {
 	function getWinner(uint256 _randomValue) private view returns (address) {
 		require(lotteryStatus == LotteryStatus.PendingResult, "Wrong lottery status");
 		if(_tokenIds.current() == 0) return owner();
-		else return ownerOf(_randomValue % _tokenIds.current());
+		else return ownerOf((_randomValue % _tokenIds.current() ) + 1);
 	}
 
 	function sendReward(address _winner) private {
