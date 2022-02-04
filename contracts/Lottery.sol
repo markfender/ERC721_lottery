@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /* contract Lottery is Ownable, VRFConsumerBase { */
 contract Lottery is Ownable, ERC721 {
+
+	event LotteryIsFinished(address winner);
 	// todo: Add events
 	// todo: Add comments
 	// todo: integrate chainlink
@@ -83,9 +85,12 @@ contract Lottery is Ownable, ERC721 {
 		lotteryStatus = LotteryStatus.PendingResult;
 
 		// todo: replace fake randomness with a chainlink
-		sendReward(getWinner(
+		address theWinner = getWinner(
 			uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, msg.sender)))
-		));
+		);
+		sendReward(theWinner);
+
+		emit LotteryIsFinished(theWinner);
 	}
 
 	function getWinner(uint256 _randomValue) private view returns (address) {
