@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -16,12 +15,6 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 contract Lottery is Ownable, ERC721, VRFConsumerBase {
 	event LotteryIsFinished(address winner);
 
-	uint256 public lotteryTicketPrice;
-	uint64 public lotteryTimeStart;
-	uint64 public lotteryPeriod;
-	uint64 public lotteryTicketsLimit;
-	uint64 constant private chainlinkFee = 10 ** 17; // 0.1 LINK fee;
-
 	using Counters for Counters.Counter;
 
 	enum LotteryStatus {
@@ -30,8 +23,14 @@ contract Lottery is Ownable, ERC721, VRFConsumerBase {
 		Finished
 	}
 
+	uint256 public lotteryTicketPrice;
+	uint64 public lotteryTimeStart;
+	uint64 public lotteryPeriod;
+	uint64 public lotteryTicketsLimit;
+	uint64 constant private chainlinkFee = 10 ** 17; // 0.1 LINK fee;
+
 	Counters.Counter private _ticketIds;
-	LotteryStatus public lotteryStatus = LotteryStatus.Finished;
+	LotteryStatus public lotteryStatus;
 
 	/// Initialize contract and start the lottery
 	/// Constructor inherits VRFConsumerBase
@@ -157,6 +156,8 @@ contract Lottery is Ownable, ERC721, VRFConsumerBase {
 	}
 
 	/// Callback function used by VRF Coordinator
+	/// @param requestId Is used to match results from Oracles, but according to this contract only one request is possible
+	/// @param randomness Random value
 	function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
 		address theWinner = getWinner(randomness);
 		sendReward(theWinner);
