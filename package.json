@@ -4,11 +4,12 @@
   "description": "Test task",
   "main": "index.js",
   "scripts": {
-    "migrate-rinkeby": "truffle migrate --network rinkeby --reset -f 1 --to 1",
+    "migrate-rinkeby": "truffle migrate --network rinkeby --reset -f 2 --to 2",
     "verify-rinkeby": "truffle run verify Lottery --network rinkeby",
-    "migrate-kovan": "truffle migrate --network kovan --reset -f 1 --to 1",
+    "migrate-kovan": "truffle migrate --network kovan --reset -f 2 --to 2",
     "verify-kovan": "truffle run verify Lottery --network kovan",
-    "test": "npx hardhat test test/lottery.test.ts"
+    "test": "npx hardhat test test/lottery.test.ts",
+    "coverage": "npx hardhat coverage --solcoverjs ./.solcover.js"
   },
   "author": "Maksym Fedorenko",
   "license": "ISC",
