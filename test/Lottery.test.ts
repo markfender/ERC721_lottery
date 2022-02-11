@@ -4,7 +4,7 @@ import { IEventWinner } from "./types";
 
 const truffleAssert = require('truffle-assertions');
 
-// todo: don not duplicate randomness request
+// todo: do not duplicate randomness request
 
 
 describe("Lottery", () => {
@@ -159,6 +159,38 @@ describe("Lottery", () => {
 				lotteryInstance.methods["finishLottery()"]({from: accounts[1]}),
 				"Lottery is not finished"
 			);
+		});
+	});
+
+	describe("restartLottery", () => {
+		it("It should burn old lottery tickets on restart", async () => {
+			for(let i = 1; i <= lotteryTicketsLimit; i++)
+				await lotteryInstance.methods["pickLotteryTicket()"]({from: accounts[i], value: ticketCost});
+
+			const ticketBalanceBeforeLotterIsFinished = await lotteryInstance.balanceOf(accounts[1]);
+
+			increaseTime(web3, timeAfterLotteryHasFinished);
+			// Finish lottery and create events
+			await lotteryInstance.methods["finishLottery()"]({from: owner});
+			// Imitate randomness callback
+			await coordinatorMockInstance.callBackWithRandomness(
+				"0x", 0, lotteryInstance.address, // 0 is a mock randomness result
+				{from: owner}
+			);
+			
+			// Restart lottery
+			await lotteryInstance.restartLottery(
+				ticketCost, //_lotteryTicketPrice in wei
+				lotteryPeriodInSeconds, // _lotteryPeriod seconds
+				lotteryTicketsLimit, // _lotteryTicketsLimit num of tickets
+				{from: owner}
+			);
+
+			const ticketBalanceAfterLotterIsFinished = await lotteryInstance.balanceOf(accounts[1]);
+			assert.ok(
+				ticketBalanceBeforeLotterIsFinished.toNumber() === 1 &&
+				ticketBalanceAfterLotterIsFinished.toNumber() === 0
+			)
 		});
 	});
 
